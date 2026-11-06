@@ -1,0 +1,1299 @@
+/*
+ * Ночь в Крае: спокойный серый интерфейс, а цвет несут только скриншот сервера и главная кнопка.
+ * Отступы кратны 4. Основа дизайна сделана по методике unslop (Damir Sokolovsky, @heydamir, CC BY 4.0).
+ */
+@font-face {
+  font-family: 'Golos Text';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/golos-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: 'Golos Text';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('./assets/golos-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  --deep: #0f0f10;
+  --bg: #141415;
+  --card: #19191b;
+  --raised: #232325;
+  --line: rgba(237, 237, 237, 0.08);
+  --line-strong: rgba(237, 237, 237, 0.16);
+  --text: #ededed;
+  --text-2: #a1a1a6;
+  --text-3: #85858b;
+  --accent: #a970ff;
+  --xp: #84d63f;
+  --ok: #4cc38a;
+  --bad: #e5484d;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 400 16px/24px 'Golos Text', 'Segoe UI', sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+button,
+input {
+  color: inherit;
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+:focus {
+  outline: none;
+}
+
+/* Картинки и ссылки нельзя утащить мышью из окна */
+img,
+a {
+  -webkit-user-drag: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+/* Область перетаскивания окна. Интерактивных элементов под ней нет. */
+.drag {
+  -webkit-app-region: drag;
+  height: 32px;
+  left: 88px;
+  position: fixed;
+  right: 144px;
+  top: 0;
+  z-index: 5;
+}
+
+.nick-screen .drag {
+  left: 0;
+}
+
+.shell {
+  display: flex;
+  height: 100%;
+}
+
+/* Панель навигации */
+.rail {
+  background: var(--deep);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  padding: 14px 4px;
+  position: relative;
+  width: 86px;
+  z-index: 6;
+}
+
+/* Голова игрока: при наведении ник, при нажатии смена ника */
+.head-wrap {
+  align-self: center;
+  flex: none;
+  height: 48px;
+  margin-top: 20px;
+  position: relative;
+  width: 48px;
+}
+
+.head {
+  background: var(--raised);
+  border: 0;
+  border-radius: 10px;
+  height: 48px;
+  padding: 0;
+  position: relative;
+  transition: box-shadow 160ms var(--ease), transform 120ms var(--ease);
+  width: 48px;
+}
+
+.head:hover:not(:disabled) {
+  box-shadow: 0 0 0 2px var(--text-2);
+}
+
+.head:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.head img {
+  border-radius: 10px;
+  display: block;
+  height: 48px;
+  image-rendering: pixelated;
+  width: 48px;
+}
+
+.head-letter {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.head-tip {
+  background: var(--deep);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  bottom: 8px;
+  color: var(--text);
+  font-size: 15px;
+  left: calc(100% + 12px);
+  opacity: 0;
+  padding: 4px 14px;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-8px);
+  transition: opacity 160ms var(--ease), transform 160ms var(--ease);
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.head:hover .head-tip,
+.head:focus-visible .head-tip {
+  opacity: 1;
+  transform: translateX(0);
+  visibility: visible;
+}
+
+.rail-mark {
+  align-self: center;
+  border-radius: 10px;
+  height: 48px;
+  image-rendering: pixelated;
+  width: 48px;
+}
+
+/* Онлайн сервера под значком */
+.rail-nav {
+  margin-top: 14px;
+}
+
+.online {
+  align-items: center;
+  color: var(--text-3);
+  display: flex;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  gap: 4px;
+  justify-content: center;
+  line-height: 20px;
+  margin-top: 10px;
+  min-height: 20px;
+}
+
+.online-dot {
+  background: var(--text-3);
+  border-radius: 50%;
+  height: 8px;
+  width: 8px;
+}
+
+.online-on {
+  color: var(--text-2);
+}
+
+.online-on .online-dot {
+  background: var(--ok);
+}
+
+.rail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rail-bottom {
+  margin-top: auto;
+}
+
+.rail-btn {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 12px;
+  color: var(--text-3);
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  gap: 4px;
+  line-height: 20px;
+  padding: 10px 0;
+  position: relative;
+  transition: background-color 160ms var(--ease), color 160ms var(--ease), transform 120ms var(--ease);
+  width: 100%;
+}
+
+/* Полоска слева у выбранного раздела вырастает из центра */
+.rail-btn::before {
+  background: var(--accent);
+  border-radius: 2px;
+  content: '';
+  height: 28px;
+  left: -4px;
+  position: absolute;
+  top: calc(50% - 14px);
+  transform: scaleY(0);
+  transition: transform 200ms var(--ease);
+  width: 3px;
+}
+
+.rail-btn svg {
+  transition: color 160ms var(--ease), transform 200ms var(--ease);
+}
+
+.rail-btn:hover {
+  background: var(--card);
+  color: var(--text);
+}
+
+.rail-btn:hover svg {
+  transform: scale(1.1);
+}
+
+.rail-btn:active {
+  transform: scale(0.96);
+}
+
+.rail-btn-on,
+.rail-btn-on:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.rail-btn-on::before {
+  transform: scaleY(1);
+}
+
+.rail-btn-on svg {
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+.rail-update {
+  color: var(--text-3);
+  font-size: 13px;
+  line-height: 20px;
+  padding: 4px;
+  text-align: center;
+}
+
+.stage {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+/* Главная: скриншот сервера на всё окно */
+.scene {
+  background-position: 62% 40%;
+  background-size: cover;
+  inset: 0;
+  position: absolute;
+}
+
+.scene::after {
+  background: linear-gradient(0deg, rgba(15, 15, 16, 0.92) 0, rgba(15, 15, 16, 0.64) 88px, rgba(15, 15, 16, 0) 200px), linear-gradient(180deg, rgba(15, 15, 16, 0.6) 0, rgba(15, 15, 16, 0) 180px);
+  content: '';
+  inset: 0;
+  position: absolute;
+}
+
+.home {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.home-top {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 38px 38px 0;
+  position: relative;
+}
+
+.home-logo {
+  display: block;
+  height: 76px;
+}
+
+.home-bottom {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  justify-content: flex-end;
+  min-height: 0;
+  padding: 0 38px 28px;
+  position: relative;
+}
+
+.home-actions {
+  align-items: center;
+  display: flex;
+  gap: 38px;
+  justify-content: space-between;
+}
+
+.socials {
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
+}
+
+.social {
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  display: flex;
+  font-size: 15px;
+  gap: 10px;
+  height: 52px;
+  padding: 0 20px 0 14px;
+  transition: background-color 120ms var(--ease);
+}
+
+.social:hover {
+  background: var(--raised);
+}
+
+.social:active {
+  transform: scale(0.98);
+}
+
+.social img {
+  display: block;
+  height: 28px;
+  image-rendering: pixelated;
+  width: 28px;
+}
+
+.home-progress {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-bottom: 14px;
+}
+
+.home-progress-line {
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  white-space: nowrap;
+}
+
+.home-progress-line span:last-child {
+  color: var(--text);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.notice {
+  background: var(--deep);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 672px;
+  padding: 20px;
+}
+
+.notice h2 {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.notice p {
+  color: var(--text-2);
+}
+
+.notice .row {
+  margin-top: 4px;
+}
+
+.notice-bad {
+  border-color: rgba(229, 72, 77, 0.56);
+}
+
+/* Полоска опыта: зелёная, поделённая на деления, как в игре */
+.xp {
+  background: var(--deep);
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  height: 10px;
+  margin-top: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.xp::after {
+  background: repeating-linear-gradient(90deg, transparent 0 22px, var(--deep) 22px 24px);
+  content: '';
+  inset: 0;
+  position: absolute;
+}
+
+.xp-fill {
+  background: var(--xp);
+  height: 100%;
+  transform-origin: left;
+  transition: transform 160ms linear;
+  width: 100%;
+}
+
+.xp-unknown .xp-fill {
+  animation: xp-seek 1.6s var(--ease) infinite;
+  width: 25%;
+}
+
+@keyframes xp-seek {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+
+/* Единственный цветной элемент интерфейса: кнопка как на lumorrix.ru */
+.btn-play {
+  background: linear-gradient(135deg, #2a7bff, #b514e0);
+  border: 0;
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  color: #fff;
+  flex: none;
+  font-size: 18px;
+  font-weight: 500;
+  height: 58px;
+  min-width: 240px;
+  padding: 0 28px;
+  transition: filter 120ms var(--ease), transform 120ms var(--ease);
+}
+
+/* Кнопка в фокусе сразу при открытии, чтобы играть по Enter: рамка не должна кричать. */
+.btn-play:focus-visible {
+  outline-color: rgba(237, 237, 237, 0.4);
+}
+
+.btn-play:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.btn-play:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-play:disabled {
+  background: var(--raised);
+  box-shadow: none;
+  color: var(--text-3);
+}
+
+.btn-cancel {
+  background: #c9353a;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  color: #fff;
+  flex: none;
+  font-size: 18px;
+  font-weight: 500;
+  height: 58px;
+  min-width: 240px;
+  padding: 0 28px;
+  transition: background-color 120ms var(--ease), transform 120ms var(--ease);
+}
+
+.btn-cancel:hover {
+  background: #d9474c;
+}
+
+.btn-cancel:active {
+  transform: scale(0.98);
+}
+
+/* Кнопки и поля */
+.row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.row-end {
+  justify-content: flex-end;
+}
+
+.btn,
+.btn-quiet {
+  border-radius: 10px;
+  height: 44px;
+  padding: 0 20px;
+  transition: background-color 120ms var(--ease), color 120ms var(--ease);
+  white-space: nowrap;
+}
+
+.btn {
+  background: var(--raised);
+  border: 1px solid var(--line);
+}
+
+.btn:hover:not(:disabled) {
+  background: #2c2c2f;
+}
+
+.btn-quiet {
+  background: none;
+  border: 0;
+  color: var(--text-2);
+}
+
+.btn-quiet:hover:not(:disabled) {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.btn:disabled,
+.btn-quiet:disabled {
+  color: var(--text-3);
+  opacity: 0.6;
+}
+
+.input {
+  background: var(--deep);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  height: 48px;
+  padding: 0 14px;
+  transition: border-color 120ms var(--ease);
+  user-select: text;
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.input:focus-visible {
+  outline: none;
+}
+
+::selection {
+  background: rgba(168, 123, 250, 0.4);
+  color: var(--text);
+}
+
+.input::placeholder {
+  color: var(--text-3);
+}
+
+.help {
+  color: var(--text-3);
+  font-size: 15px;
+}
+
+.help-bad {
+  color: var(--bad);
+}
+
+.empty {
+  align-items: center;
+  color: var(--text-2);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 58px 0;
+  text-align: center;
+}
+
+/* Страницы «Моды» и «Настройки» */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 48px 38px 0;
+}
+
+.page-head {
+  align-items: flex-end;
+  display: flex;
+  flex: none;
+  gap: 28px;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.page-head h1 {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 36px;
+}
+
+.counter {
+  color: var(--text-3);
+  flex: none;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.toolbar {
+  align-items: center;
+  display: flex;
+  flex: none;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.toolbar-search {
+  flex: 1;
+  height: 44px;
+  min-width: 0;
+}
+
+.page > .help {
+  flex: none;
+  margin-bottom: 14px;
+}
+
+.mod-scroll {
+  flex: 1;
+  margin-right: -20px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 20px 28px 0;
+}
+
+.presets {
+  display: grid;
+  flex: 1;
+  gap: 14px;
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 38px;
+  min-height: 0;
+}
+
+.preset {
+  align-items: flex-start;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: flex-end;
+  min-height: 216px;
+  overflow: hidden;
+  padding: 28px;
+  position: relative;
+  text-align: left;
+  transition: border-color 120ms var(--ease);
+}
+
+.preset:hover:not(:disabled) {
+  border-color: rgba(237, 237, 237, 0.4);
+}
+
+.preset:disabled {
+  opacity: 0.6;
+}
+
+.preset-on,
+.preset-on:hover:not(:disabled) {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.preset-mark {
+  align-items: center;
+  background: var(--accent);
+  border-radius: 50%;
+  color: #0f0f10;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 28px;
+}
+
+.preset-image {
+  background-position: center;
+  background-size: cover;
+  filter: brightness(0.86);
+  inset: 0;
+  position: absolute;
+  transition: filter 120ms var(--ease);
+}
+
+/* На панораме Create главное, водяное колесо, находится справа */
+.preset:nth-child(3) .preset-image {
+  background-position: 96% center;
+}
+
+.preset:hover:not(:disabled) .preset-image {
+  filter: brightness(1);
+}
+
+/* Затемнение снизу, чтобы подпись читалась на любой картинке */
+.preset-image::after {
+  background: linear-gradient(0deg, rgba(15, 15, 16, 0.96) 0, rgba(15, 15, 16, 0.72) 96px, rgba(15, 15, 16, 0) 200px);
+  content: '';
+  inset: 0;
+  position: absolute;
+}
+
+.preset-title {
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 28px;
+  position: relative;
+}
+
+.preset-text {
+  color: var(--text);
+  font-size: 15px;
+  opacity: 0.8;
+  position: relative;
+}
+
+.mod-group + .mod-group {
+  margin-top: 28px;
+}
+
+.mod-group h2 {
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.mod {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 20px;
+  min-height: 68px;
+  padding: 10px 20px;
+  transition: background-color 120ms var(--ease);
+}
+
+.mod:first-child {
+  border-radius: 13px 13px 0 0;
+}
+
+.mod:last-child {
+  border-radius: 0 0 13px 13px;
+}
+
+.mod:only-child {
+  border-radius: 13px;
+}
+
+.mod + .mod,
+.setting + .setting {
+  border-top: 1px solid var(--line);
+}
+
+.mod:hover {
+  background: var(--raised);
+}
+
+.mod-locked {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.mod-locked:hover {
+  background: none;
+}
+
+.mod-icon {
+  align-items: center;
+  background: var(--raised);
+  border-radius: 10px;
+  color: var(--text-3);
+  display: flex;
+  flex: none;
+  height: 48px;
+  justify-content: center;
+  overflow: hidden;
+  width: 48px;
+}
+
+.mod-icon img {
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+.mod-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mod-name {
+  font-weight: 500;
+}
+
+.mod-desc {
+  color: var(--text-2);
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel + .own-add {
+  margin-top: 10px;
+}
+
+.switch {
+  appearance: none;
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  cursor: inherit;
+  flex: none;
+  height: 28px;
+  margin: 0;
+  position: relative;
+  transition: background-color 120ms var(--ease), border-color 120ms var(--ease);
+  width: 48px;
+}
+
+.switch::after {
+  background: var(--text-2);
+  border-radius: 50%;
+  content: '';
+  height: 20px;
+  left: 3px;
+  position: absolute;
+  top: 3px;
+  transition: transform 160ms var(--ease), background-color 120ms var(--ease);
+  width: 20px;
+}
+
+.switch:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch:checked::after {
+  background: #fff;
+  transform: translateX(20px);
+}
+
+.modal-back {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.64);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  position: fixed;
+  z-index: 10;
+}
+
+.modal {
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 528px;
+  padding: 28px;
+}
+
+.modal h2 {
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 28px;
+}
+
+.modal p {
+  color: var(--text-2);
+}
+
+.modal .row {
+  margin-top: 20px;
+}
+
+.settings-modal {
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+  max-width: calc(100vw - 48px);
+  overflow-y: auto;
+  padding: 24px 32px;
+  width: 840px;
+}
+
+.settings-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.settings-head h1 {
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 32px;
+}
+
+.settings-modal .btn {
+  height: 40px;
+}
+
+.settings-modal .version-line {
+  margin-top: 16px;
+}
+
+.close {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: var(--text-2);
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  transition: background-color 120ms var(--ease), color 120ms var(--ease);
+  width: 40px;
+}
+
+.close:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.setting {
+  align-items: center;
+  display: flex;
+  gap: 28px;
+  justify-content: space-between;
+  min-height: 60px;
+  padding: 8px 20px;
+}
+
+.setting-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.setting-title {
+  font-weight: 500;
+}
+
+.setting-desc {
+  color: var(--text-2);
+  font-size: 15px;
+}
+
+.segments {
+  background: var(--deep);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+}
+
+.segment {
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  height: 34px;
+  padding: 0 10px;
+  transition: background-color 120ms var(--ease), color 120ms var(--ease);
+  white-space: nowrap;
+}
+
+.segment:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.segment-on,
+.segment-on:hover:not(:disabled) {
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--text);
+}
+
+.segment:disabled {
+  opacity: 0.32;
+}
+
+.version-line {
+  color: var(--text-3);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Экран ника */
+.nick-screen {
+  align-items: center;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  position: relative;
+}
+
+.nick-card {
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 38px;
+  position: relative;
+  width: 480px;
+}
+
+.nick-logo {
+  align-self: center;
+  height: 68px;
+  margin-bottom: 20px;
+}
+
+.field-label {
+  font-weight: 500;
+}
+
+.nick-card .input {
+  font-size: 18px;
+  height: 52px;
+}
+
+.nick-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.nick-actions .btn-play {
+  flex: 1;
+  min-width: 0;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--raised);
+  border-radius: 4px;
+}
+
+.toggles {
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.toggle-cell {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  min-height: 60px;
+  padding: 8px 20px;
+  transition: background-color 120ms var(--ease);
+}
+
+.toggle-cell:hover {
+  background: var(--raised);
+}
+
+.toggle-cell:nth-child(odd) {
+  border-right: 1px solid var(--line);
+}
+
+.toggle-cell:nth-child(n + 3) {
+  border-top: 1px solid var(--line);
+}
+
+.toggle-locked {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.toggle-locked:hover {
+  background: none;
+}
+
+.toggles + .setting {
+  border-top: 1px solid var(--line);
+}
+
+/* Анимации окон: фон проявляется, карточка мягко выезжает. Смена вкладки: короткое появление. */
+@keyframes back-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.modal-back {
+  animation: back-in 160ms var(--ease);
+}
+
+.modal,
+.settings-modal,
+.nick-pop {
+  animation: card-in 200ms var(--ease);
+}
+
+.stage > .home,
+.stage > .page,
+.page > .presets {
+  animation: page-in 140ms var(--ease);
+}
+
+.notice {
+  animation: card-in 200ms var(--ease);
+}
+
+.notice {
+  position: relative;
+}
+
+.notice-close {
+  height: 32px;
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 32px;
+}
+
+.notice-bad h2 {
+  padding-right: 32px;
+}
+
+/* Окно смены ника рядом с головой */
+.nick-pop-back {
+  inset: 0;
+  position: fixed;
+  z-index: 10;
+}
+
+.nick-pop {
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  left: calc(100% + 24px);
+  padding: 6px;
+  position: absolute;
+  top: 6px;
+  width: 264px;
+  z-index: 11;
+}
+
+.nick-pop-row {
+  display: flex;
+  gap: 6px;
+}
+
+.nick-pop .input {
+  border-radius: 8px;
+  flex: 1;
+  font-size: 14px;
+  height: 32px;
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.nick-pop .btn {
+  border-radius: 8px;
+  font-size: 14px;
+  height: 32px;
+  padding: 0 10px;
+}
+
+.nick-pop .help {
+  font-size: 13px;
+  padding: 0 4px;
+}

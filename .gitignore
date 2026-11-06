@@ -1,0 +1,9 @@
+node_modules/
+out/
+dist/
+*.log
+
+# Локальные секреты и настройки
+.env*
+*.pem
+*.key

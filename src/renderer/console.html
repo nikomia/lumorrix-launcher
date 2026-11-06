@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>Lumorrix: консоль</title>
+  </head>
+  <body class="console-body">
+    <div class="console-bar">
+      <input id="search" class="input console-search" placeholder="Поиск" aria-label="Поиск по логу" spellcheck="false" />
+      <span id="lines" class="console-count"></span>
+      <button id="follow" class="btn console-on" aria-pressed="true">Автопрокрутка</button>
+      <button id="copy" class="btn">Копировать</button>
+      <button id="clear" class="btn">Очистить</button>
+    </div>
+    <div id="levels" class="console-levels">
+      <button class="level" data-level="info"><i></i>Инфо <b>0</b></button>
+      <button class="level" data-level="warn"><i></i>Предупреждения <b>0</b></button>
+      <button class="level" data-level="error"><i></i>Ошибки <b>0</b></button>
+      <button class="level" data-level="debug"><i></i>Отладка <b>0</b></button>
+    </div>
+    <div id="log" class="console-log"></div>
+    <script type="module" src="./console.ts"></script>
+  </body>
+</html>
