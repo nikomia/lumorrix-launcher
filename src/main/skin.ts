@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { DefaultSkin, SkinResult } from '../shared/types'
+import type { CurrentSkin, DefaultSkin, SkinResult } from '../shared/types'
 import { MC_VERSION } from './game/install'
 import { offlineUuid } from './game/version'
 import { log } from './log'
@@ -9,8 +9,9 @@ import { readZipEntry } from './pack/modlist'
 import { paths } from './paths'
 
 /**
- * Скины игроков лежат на нашем сайте: https://lumorrix.ru/skins/<ник>.png. В игре их показывает мод CustomSkinLoader.
- * Загружает скин сам лаунчер. Ник закрепляется за первым лаунчером, который поставил ему скин: сайт помнит его ключ.
+ * Лаунчер отправляет скин на наш сайт, сайт подписывает его и ставит на игровом сервере, так что его видят все игроки.
+ * Скин можно поменять и в игре командой /skin: тогда действует тот, что поменяли последним.
+ * Ник закрепляется за первым лаунчером, который поставил ему скин: сайт помнит его ключ.
  */
 const SKIN_SITE = process.env.LUMORRIX_SKIN_SITE ?? 'https://lumorrix.ru'
 const keyFile = join(paths.data, 'skin-key.txt')
@@ -51,15 +52,32 @@ export function uploadSkin(nickname: string, png: Uint8Array): Promise<SkinResul
 
 export const resetSkin = (nickname: string) => request('DELETE', nickname)
 
-/** Скин игрока с сайта как data URL, чтобы окно могло его нарисовать. null — скина нет или нет связи. */
-export async function currentSkin(nickname: string): Promise<string | null> {
+async function fetchPng(url: string): Promise<Response> {
+  return fetch(url, { headers: { 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(10_000) })
+}
+
+const asDataUrl = async (response: Response) =>
+  `data:image/png;base64,${Buffer.from(await response.arrayBuffer()).toString('base64')}`
+
+/**
+ * Скин, который сейчас стоит у игрока в игре, как data URL, чтобы окно могло его нарисовать: загруженный из лаунчера
+ * или поставленный командой /skin на сервере. null — своего скина нет или нет связи.
+ */
+export async function currentSkin(nickname: string): Promise<CurrentSkin | null> {
+  const nick = encodeURIComponent(nickname)
   try {
-    const response = await fetch(`${SKIN_SITE}/skins/${encodeURIComponent(nickname)}.png?t=${Date.now()}`, {
-      headers: { 'Cache-Control': 'no-cache' },
-      signal: AbortSignal.timeout(10_000),
-    })
-    if (!response.ok) return null
-    return `data:image/png;base64,${Buffer.from(await response.arrayBuffer()).toString('base64')}`
+    const response = await fetchPng(`${SKIN_SITE}/api/skin/current?nick=${nick}&t=${Date.now()}`)
+    if (response.ok) {
+      return { src: await asDataUrl(response), fromServer: response.headers.get('X-Lumorrix-Skin-Source') === 'server' }
+    }
+    if (response.status === 404) return null
+  } catch {
+    // ниже попробуем просто файл с сайта
+  }
+  // Сайт не смог спросить игровой сервер: показываем скин, загруженный из лаунчера.
+  try {
+    const response = await fetchPng(`${SKIN_SITE}/skins/${nick}.png?t=${Date.now()}`)
+    return response.ok ? { src: await asDataUrl(response), fromServer: false } : null
   } catch {
     return null
   }

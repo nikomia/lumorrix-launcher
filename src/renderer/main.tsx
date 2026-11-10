@@ -3,7 +3,7 @@ import type { ComponentChildren } from 'preact'
 import { render } from 'preact'
 import { useRef, useEffect, useMemo, useState } from 'preact/hooks'
 import { GROUPS, modGroup, modText } from '../shared/modinfo'
-import type { CrashReport, DefaultSkin, JvmPreset, LauncherApi, LinkName, ModView, Preset, RequiredUpdate, ServerStatus, SettingsView, Status, UpdateStatus } from '../shared/types'
+import type { CrashReport, CurrentSkin, DefaultSkin, JvmPreset, LauncherApi, LinkName, ModView, Preset, RequiredUpdate, ServerStatus, SettingsView, Status, UpdateStatus } from '../shared/types'
 import hero from './assets/hero.webp'
 import iconDiscord from './assets/icon-discord.svg'
 import iconRules from './assets/icon-rules.svg'
@@ -352,12 +352,12 @@ const checkSkinSize = (image: HTMLImageElement) =>
     : `Скин должен быть 64×64 или 64×32 пикселя, а этот ${image.width}×${image.height}.`
 
 /** Вкладка «Скин»: свой скин из PNG-файла. Его видят все игроки на сервере. */
-function SkinPage({ skin, standard, onSkin }: { skin: string | null; standard: DefaultSkin | null; onSkin: (skin: string | null) => void }) {
+function SkinPage({ skin, standard, onSkin }: { skin: CurrentSkin | null; standard: DefaultSkin | null; onSkin: (skin: CurrentSkin | null) => void }) {
   const input = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ bad: boolean; text: string } | null>(null)
-  const shown = preview ?? skin ?? standard?.src ?? null
+  const shown = preview ?? skin?.src ?? standard?.src ?? null
 
   const choose = async (file: File | undefined) => {
     if (!file) return
@@ -375,7 +375,7 @@ function SkinPage({ skin, standard, onSkin }: { skin: string | null; standard: D
       const result = await api.uploadSkin(bytes)
       if (result.ok) {
         onSkin(await api.getSkin())
-        setMessage({ bad: false, text: 'Скин сохранён. Игроки увидят его, когда перезайдут на сервер.' })
+        setMessage({ bad: false, text: 'Скин сохранён. В игре он появится примерно через минуту, перезаходить не нужно.' })
       } else {
         setMessage({ bad: true, text: result.error })
       }
@@ -395,8 +395,9 @@ function SkinPage({ skin, standard, onSkin }: { skin: string | null; standard: D
     const result = await api.resetSkin()
     setBusy(false)
     if (result.ok) {
-      onSkin(null)
-      setMessage({ bad: false, text: 'Вернули стандартный скин.' })
+      const current = await api.getSkin()
+      onSkin(current)
+      setMessage({ bad: false, text: current ? 'Убрали скин из лаунчера. В игре снова скин, поставленный командой /skin.' : 'Вернули стандартный скин.' })
     } else {
       setMessage({ bad: true, text: result.error })
     }
@@ -410,7 +411,7 @@ function SkinPage({ skin, standard, onSkin }: { skin: string | null; standard: D
       <div class="skin-layout">
         <div class="skin-stage">
           <p class="skin-now">
-            {skin || preview ? 'Ваш скин' : standard?.name === 'лицензия Minecraft' ? 'Скин лицензии Minecraft' : standard ? `Стандартный скин: ${standard.name}` : 'Стандартный скин'}
+            {preview ? 'Ваш скин' : skin?.fromServer ? 'Ваш скин (поставлен командой /skin)' : skin ? 'Ваш скин' : standard?.name === 'лицензия Minecraft' ? 'Скин лицензии Minecraft' : standard ? `Стандартный скин: ${standard.name}` : 'Стандартный скин'}
           </p>
           {shown ? <Skin3D src={shown} /> : <p class="skin-empty">Появится после установки игры</p>}
           {shown && <p class="skin-hint">Поверните мышкой</p>}
@@ -426,7 +427,7 @@ function SkinPage({ skin, standard, onSkin }: { skin: string | null; standard: D
               <Shirt size={18} strokeWidth={2.5} />
               {busy ? 'Сохраняем…' : 'Выбрать файл'}
             </button>
-            {skin && !busy && (
+            {skin && !skin.fromServer && !busy && (
               <button class="btn" onClick={() => void reset()}>
                 Вернуть стандартный
               </button>
@@ -913,7 +914,7 @@ function App() {
   const [status, setStatus] = useState<Status>({ state: 'idle' })
   const [update, setUpdate] = useState<UpdateStatus>({ state: 'none' })
   const [required, setRequired] = useState<RequiredUpdate | null>(null)
-  const [skin, setSkin] = useState<string | null>(null)
+  const [skin, setSkin] = useState<CurrentSkin | null>(null)
   const [standardSkin, setStandardSkin] = useState<DefaultSkin | null>(null)
   const [settings, setSettings] = useState<SettingsView | null>(null)
   const [tab, setTab] = useState<Tab>('play')
@@ -929,9 +930,16 @@ function App() {
     void api.getSettings().then(setSettings)
   }, [])
 
+  // Скин могли поменять в игре командой /skin, поэтому спрашиваем заново и при каждом открытии вкладки «Скин».
+  const onSkinTab = tab === 'skin'
   useEffect(() => {
-    if (settings?.nickname) void api.getSkin().then(setSkin)
-  }, [settings?.nickname])
+    if (!settings?.nickname) return
+    let alive = true
+    void api.getSkin().then((current) => alive && setSkin(current))
+    return () => {
+      alive = false
+    }
+  }, [settings?.nickname, onSkinTab])
 
   // Стандартный скин берётся из файлов игры, поэтому его ищем заново и после установки.
   useEffect(() => {
@@ -968,7 +976,7 @@ function App() {
         <ServerOnline />
         <PlayerHead
           nickname={settings.nickname}
-          skin={skin ?? standardSkin?.src ?? null}
+          skin={skin?.src ?? standardSkin?.src ?? null}
           disabled={busy}
           editing={editingNick}
           onEdit={() => setEditingNick(true)}

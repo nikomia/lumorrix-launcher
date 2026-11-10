@@ -17,6 +17,12 @@ export type UpdateStatus =
 /** Ответ сайта на загрузку или сброс скина. */
 export type SkinResult = { ok: true } | { ok: false; error: string }
 
+/** Свой скин игрока, который сейчас стоит в игре. fromServer — поставлен командой /skin, а не из лаунчера. */
+export interface CurrentSkin {
+  src: string
+  fromServer: boolean
+}
+
 /** Скин, который игра показывает нику без своего скина: лицензионный с тем же ником или стандартный Minecraft. */
 export interface DefaultSkin {
   src: string
@@ -127,7 +133,7 @@ export interface LauncherApi {
   onUpdate(listener: (status: UpdateStatus) => void): void
   onUpdateRequired(listener: (info: RequiredUpdate) => void): void
   /** Скин игрока с сайта (data URL) или null, если стоит стандартный. */
-  getSkin(): Promise<string | null>
+  getSkin(): Promise<CurrentSkin | null>
   /** Стандартный скин игрока; null, если игра ещё не установлена. */
   getDefaultSkin(): Promise<DefaultSkin | null>
   uploadSkin(png: Uint8Array): Promise<SkinResult>
