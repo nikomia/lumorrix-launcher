@@ -1,9 +1,9 @@
-import { Check, House, Puzzle, RefreshCw, Settings as SettingsIcon, X } from 'lucide-preact'
+import { Check, House, Puzzle, RefreshCw, Settings as SettingsIcon, Shirt, X } from 'lucide-preact'
 import type { ComponentChildren } from 'preact'
 import { render } from 'preact'
 import { useRef, useEffect, useMemo, useState } from 'preact/hooks'
 import { GROUPS, modGroup, modText } from '../shared/modinfo'
-import type { CrashReport, JvmPreset, LauncherApi, LinkName, ModView, Preset, ServerStatus, SettingsView, Status, UpdateStatus } from '../shared/types'
+import type { CrashReport, DefaultSkin, JvmPreset, LauncherApi, LinkName, ModView, Preset, RequiredUpdate, ServerStatus, SettingsView, Status, UpdateStatus } from '../shared/types'
 import hero from './assets/hero.webp'
 import iconDiscord from './assets/icon-discord.svg'
 import iconRules from './assets/icon-rules.svg'
@@ -13,6 +13,8 @@ import mark from './assets/mark.png'
 import presetCustom from './assets/preset-custom.jpg'
 import presetPerformance from './assets/preset-performance.jpg'
 import presetQuality from './assets/preset-quality.jpg'
+import { headDataUrl, loadImage } from './skin'
+import { Skin3D } from './skin3d'
 import './styles.css'
 
 declare global {
@@ -22,15 +24,52 @@ declare global {
 }
 
 const api = window.lumorrix
+document.documentElement.dataset.platform = api.platform
+
+/** Облёт сервера для фона главной. Файла может не быть: тогда фон остаётся картинкой hero.webp. */
+const flyover = Object.values(import.meta.glob('./assets/flyover.{mp4,webm}', { eager: true, query: '?url', import: 'default' }))[0]
 const NICKNAME = /^[A-Za-z0-9_]{3,16}$/
 const ICON = { size: 22, strokeWidth: 2.5 }
 
-type Tab = 'play' | 'mods'
+type Tab = 'play' | 'mods' | 'skin'
 
 const isBusy = (status: Status) => status.state === 'working' || status.state === 'playing'
 
-function Scene() {
-  return <div class="scene" style={{ backgroundImage: `url(${hero})` }} />
+/**
+ * Фон главной. Пока видео не началось, а также при «уменьшении движения» в системе виден первый кадр облёта.
+ * Фон не пересоздаётся при смене вкладок: на других вкладках видео стоит на паузе и продолжается с того же кадра.
+ */
+function Scene({ active = true }: { active?: boolean }) {
+  const video = useRef<HTMLVideoElement>(null)
+  const [playing, setPlaying] = useState(false)
+  useEffect(() => {
+    const element = video.current
+    if (!element) return
+    const sync = () => {
+      if (document.hidden || !active) element.pause()
+      else void element.play().catch(() => {})
+    }
+    sync()
+    document.addEventListener('visibilitychange', sync)
+    return () => document.removeEventListener('visibilitychange', sync)
+  }, [active])
+  return (
+    <div class={`scene${active ? '' : ' scene-off'}`} style={{ backgroundImage: `url(${hero})` }}>
+      {flyover && (
+        <video
+          ref={video}
+          class={`scene-video${playing ? ' scene-video-on' : ''}`}
+          src={flyover}
+          muted
+          loop
+          playsInline
+          preload="auto"
+          disablePictureInPicture
+          onPlaying={() => setPlaying(true)}
+        />
+      )}
+    </div>
+  )
 }
 
 const NICKNAME_HINT = 'От 3 до 16 символов: латинские буквы, цифры и _'
@@ -116,16 +155,21 @@ function NicknamePopover(props: { initial: string; onSave: (nickname: string) =>
 }
 
 /** Голова игрока по нику. Без интернета или при ошибке сервиса показываем первую букву ника. */
-function PlayerHead(props: { nickname: string; disabled: boolean; editing: boolean; onEdit: () => void; onSave: (nickname: string) => void; onCancel: () => void }) {
+function PlayerHead(props: { nickname: string; skin: string | null; disabled: boolean; editing: boolean; onEdit: () => void; onSave: (nickname: string) => void; onCancel: () => void }) {
   const [failed, setFailed] = useState(false)
+  const [head, setHead] = useState<string | null>(null)
   useEffect(() => setFailed(false), [props.nickname])
+  useEffect(() => {
+    setHead(null)
+    if (props.skin) void loadImage(props.skin).then((image) => setHead(headDataUrl(image)), () => setHead(null))
+  }, [props.skin])
   return (
     <div class="head-wrap">
       <button class="head" disabled={props.disabled} aria-label={`Сменить ник ${props.nickname}`} onClick={props.onEdit}>
-        {failed ? (
+        {failed || !head ? (
           <span class="head-letter">{props.nickname[0].toUpperCase()}</span>
         ) : (
-          <img src={`https://mc-heads.net/avatar/${encodeURIComponent(props.nickname)}/64`} alt="" onError={() => setFailed(true)} />
+          <img src={head} alt="" onError={() => setFailed(true)} />
         )}
         {!props.editing && <span class="head-tip">{props.nickname}</span>}
       </button>
@@ -251,6 +295,207 @@ function Notice({ status, installed, onOpenSettings }: { status: Status; install
   return null
 }
 
+/**
+ * Плашка об обновлении лаунчера. Пока новая версия скачивается, видно прогресс; когда готова, есть кнопка
+ * «Обновить» (лаунчер перезапустится). Если плашку закрыть, обновление поставится само при выходе.
+ */
+function UpdateBanner({ update, busy }: { update: UpdateStatus; busy: boolean }) {
+  const [hidden, setHidden] = useState('')
+  if (update.state === 'none') return null
+  const key = `${update.state}:${update.version}`
+  if (hidden === key) return null
+  const close = (
+    <button class="close update-close" aria-label="Закрыть" onClick={() => setHidden(key)}>
+      <X size={18} strokeWidth={2} />
+    </button>
+  )
+  if (update.state === 'updated') {
+    return (
+      <section class="update-banner" role="status">
+        {close}
+        <h2>Лаунчер обновился</h2>
+        <p>Теперь у вас версия {update.version}.</p>
+      </section>
+    )
+  }
+  if (update.state === 'downloading') {
+    return (
+      <section class="update-banner" role="status">
+        {close}
+        <h2>Вышла новая версия лаунчера</h2>
+        <p>
+          Скачиваем версию {update.version}: {update.percent}%
+        </p>
+      </section>
+    )
+  }
+  return (
+    <section class="update-banner" role="status">
+      {close}
+      <h2>Лаунчер обновился до версии {update.version}</h2>
+      <p>{busy ? 'Обновление поставится, когда закончится игра или установка.' : 'Нажмите «Обновить», лаунчер перезапустится за пару секунд.'}</p>
+      {!busy && (
+        <div class="row">
+          <button class="btn btn-update" onClick={() => api.installUpdate()}>
+            <RefreshCw size={18} strokeWidth={2.5} />
+            Обновить
+          </button>
+        </div>
+      )}
+    </section>
+  )
+}
+
+const checkSkinSize = (image: HTMLImageElement) =>
+  image.width === 64 && (image.height === 64 || image.height === 32)
+    ? null
+    : `Скин должен быть 64×64 или 64×32 пикселя, а этот ${image.width}×${image.height}.`
+
+/** Вкладка «Скин»: свой скин из PNG-файла. Его видят все игроки на сервере. */
+function SkinPage({ skin, standard, onSkin }: { skin: string | null; standard: DefaultSkin | null; onSkin: (skin: string | null) => void }) {
+  const input = useRef<HTMLInputElement>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<{ bad: boolean; text: string } | null>(null)
+  const shown = preview ?? skin ?? standard?.src ?? null
+
+  const choose = async (file: File | undefined) => {
+    if (!file) return
+    setMessage(null)
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }))
+    try {
+      const problem = checkSkinSize(await loadImage(url))
+      if (problem) {
+        setMessage({ bad: true, text: problem })
+        return
+      }
+      setPreview(url)
+      setBusy(true)
+      const result = await api.uploadSkin(bytes)
+      if (result.ok) {
+        onSkin(await api.getSkin())
+        setMessage({ bad: false, text: 'Скин сохранён. Игроки увидят его, когда перезайдут на сервер.' })
+      } else {
+        setMessage({ bad: true, text: result.error })
+      }
+    } catch {
+      setMessage({ bad: true, text: 'Это не картинка PNG.' })
+    } finally {
+      setPreview(null)
+      setBusy(false)
+      URL.revokeObjectURL(url)
+      if (input.current) input.current.value = ''
+    }
+  }
+
+  const reset = async () => {
+    setBusy(true)
+    setMessage(null)
+    const result = await api.resetSkin()
+    setBusy(false)
+    if (result.ok) {
+      onSkin(null)
+      setMessage({ bad: false, text: 'Вернули стандартный скин.' })
+    } else {
+      setMessage({ bad: true, text: result.error })
+    }
+  }
+
+  return (
+    <div class="page skin-page">
+      <header class="page-head">
+        <h1>Скин</h1>
+      </header>
+      <div class="skin-layout">
+        <div class="skin-stage">
+          <p class="skin-now">
+            {skin || preview ? 'Ваш скин' : standard?.name === 'лицензия Minecraft' ? 'Скин лицензии Minecraft' : standard ? `Стандартный скин: ${standard.name}` : 'Стандартный скин'}
+          </p>
+          {shown ? <Skin3D src={shown} /> : <p class="skin-empty">Появится после установки игры</p>}
+          {shown && <p class="skin-hint">Поверните мышкой</p>}
+        </div>
+        <div class="skin-side">
+          <p class="help">
+            Файл PNG 64×64 или 64×32, как в обычном Minecraft. Скин увидят все игроки на сервере. Тонкие руки, как у Алекс,
+            определятся сами.
+          </p>
+          <input ref={input} type="file" accept="image/png" hidden onChange={(event) => void choose(event.currentTarget.files?.[0])} />
+          <div class="row">
+            <button class="btn btn-update" disabled={busy} onClick={() => input.current?.click()}>
+              <Shirt size={18} strokeWidth={2.5} />
+              {busy ? 'Сохраняем…' : 'Выбрать файл'}
+            </button>
+            {skin && !busy && (
+              <button class="btn" onClick={() => void reset()}>
+                Вернуть стандартный
+              </button>
+            )}
+          </div>
+          {message && <p class={message.bad ? 'help help-bad' : 'help skin-ok'}>{message.text}</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Окно «Нужно обновить лаунчер»: появляется, если нажать «Играть» в старой версии. Играть без обновления нельзя. */
+function UpdateRequiredModal({ info, update, onClose }: { info: RequiredUpdate; update: UpdateStatus; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+  let action: ComponentChildren
+  if (info.manual) {
+    action = (
+      <button class="btn btn-update" onClick={() => api.openLink('download')}>
+        Скачать новую версию
+      </button>
+    )
+  } else if (update.state === 'ready') {
+    action = (
+      <button class="btn btn-update" onClick={() => api.installUpdate()}>
+        <RefreshCw size={18} strokeWidth={2.5} />
+        Обновить
+      </button>
+    )
+  } else {
+    action = (
+      <button class="btn btn-update" disabled>
+        {update.state === 'downloading' ? `Скачиваем обновление: ${update.percent}%` : 'Готовим обновление…'}
+      </button>
+    )
+  }
+  return (
+    <div
+      class="modal-back"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Нужно обновить лаунчер"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <div class="modal update-required">
+        <button class="close notice-close" aria-label="Закрыть" onClick={onClose}>
+          <X size={20} strokeWidth={2} />
+        </button>
+        <h2>Нужно обновить лаунчер</h2>
+        <p>
+          Вышла версия {info.version}, а у вас {api.version}. Играть на сервере можно только с новой версией.
+          {info.manual
+            ? ' Скачайте её на сайте и замените ею текущий лаунчер.'
+            : ' Нажмите «Обновить», лаунчер перезапустится за пару секунд.'}
+        </p>
+        <div class="row">{action}</div>
+      </div>
+    </div>
+  )
+}
+
 /** Прогресс установки в виде полоски опыта из Minecraft. */
 function ExperienceBar({ fraction }: { fraction: number | null }) {
   return (
@@ -315,7 +560,6 @@ function HomePage({ status, settings, onOpenSettings }: { status: Status; settin
   const installed = !!settings.packVersion
   return (
     <div class="home">
-      <Scene />
       <div class="home-top">
         <img class="home-logo" src={logo} alt="Lumorrix" />
       </div>
@@ -668,6 +912,9 @@ function RailButton(props: { icon: ComponentChildren; label: string; active?: bo
 function App() {
   const [status, setStatus] = useState<Status>({ state: 'idle' })
   const [update, setUpdate] = useState<UpdateStatus>({ state: 'none' })
+  const [required, setRequired] = useState<RequiredUpdate | null>(null)
+  const [skin, setSkin] = useState<string | null>(null)
+  const [standardSkin, setStandardSkin] = useState<DefaultSkin | null>(null)
   const [settings, setSettings] = useState<SettingsView | null>(null)
   const [tab, setTab] = useState<Tab>('play')
   const [editingNick, setEditingNick] = useState(false)
@@ -676,10 +923,20 @@ function App() {
   useEffect(() => {
     api.onStatus(setStatus)
     api.onUpdate(setUpdate)
+    api.onUpdateRequired(setRequired)
     void api.getStatus().then(setStatus)
     void api.getUpdate().then(setUpdate)
     void api.getSettings().then(setSettings)
   }, [])
+
+  useEffect(() => {
+    if (settings?.nickname) void api.getSkin().then(setSkin)
+  }, [settings?.nickname])
+
+  // Стандартный скин берётся из файлов игры, поэтому его ищем заново и после установки.
+  useEffect(() => {
+    if (settings?.nickname) void api.getDefaultSkin().then(setStandardSkin)
+  }, [settings?.nickname, settings?.packVersion])
 
   // Версия сборки меняется после установки, поэтому обновляем её, когда работа закончена.
   useEffect(() => {
@@ -711,6 +968,7 @@ function App() {
         <ServerOnline />
         <PlayerHead
           nickname={settings.nickname}
+          skin={skin ?? standardSkin?.src ?? null}
           disabled={busy}
           editing={editingNick}
           onEdit={() => setEditingNick(true)}
@@ -720,6 +978,7 @@ function App() {
         <nav class="rail-nav">
           <RailButton icon={<House {...ICON} />} label="Главная" active={tab === 'play'} onClick={() => setTab('play')} />
           <RailButton icon={<Puzzle {...ICON} />} label="Моды" active={tab === 'mods'} onClick={() => setTab('mods')} />
+          <RailButton icon={<Shirt {...ICON} />} label="Скин" active={tab === 'skin'} onClick={() => setTab('skin')} />
         </nav>
         <nav class="rail-nav rail-bottom">
           {update.state === 'downloading' && <span class="rail-update">Обновление {update.percent}%</span>}
@@ -729,9 +988,13 @@ function App() {
       </aside>
       <main class="stage">
         <div class="drag" />
+        <Scene active={tab === 'play'} />
+        <UpdateBanner update={update} busy={busy} />
         {tab === 'play' && <HomePage status={status} settings={settings} onOpenSettings={() => setShowSettings(true)} />}
         {tab === 'mods' && <ModsPage busy={busy} preset={settings.modPreset} onSettings={setSettings} />}
+        {tab === 'skin' && <SkinPage skin={skin} standard={standardSkin} onSkin={setSkin} />}
       </main>
+      {required && <UpdateRequiredModal info={required} update={update} onClose={() => setRequired(null)} />}
       {showSettings && (
         <SettingsModal
           settings={settings}

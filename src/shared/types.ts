@@ -11,6 +11,24 @@ export type UpdateStatus =
   | { state: 'none' }
   | { state: 'downloading'; version: string; percent: number }
   | { state: 'ready'; version: string }
+  /** Лаунчер только что обновился до этой версии: один раз показываем об этом плашку. */
+  | { state: 'updated'; version: string }
+
+/** Ответ сайта на загрузку или сброс скина. */
+export type SkinResult = { ok: true } | { ok: false; error: string }
+
+/** Скин, который игра показывает нику без своего скина: лицензионный с тем же ником или стандартный Minecraft. */
+export interface DefaultSkin {
+  src: string
+  name: string
+}
+
+/** Играть со старой версией лаунчера нельзя: нужно обновиться до version. */
+export interface RequiredUpdate {
+  version: string
+  /** Лаунчер не умеет обновляться сам (macOS, Linux без AppImage): новую версию нужно скачать с сайта. */
+  manual: boolean
+}
 
 export type Preset = 'quality' | 'performance' | 'custom'
 export type JvmPreset = 'g1' | 'zgc' | 'lowend'
@@ -72,10 +90,14 @@ export interface ModView {
 /** null: узнать не удалось, поэтому ничего не показываем. */
 export type ServerStatus = { online: false } | { online: true; players: number; max: number } | null
 
-export type LinkName = 'discord' | 'support' | 'wiki' | 'rules'
+export type LinkName = 'discord' | 'support' | 'wiki' | 'rules' | 'download'
 export type FolderName = 'game' | 'mods' | 'logs'
 
 export interface LauncherApi {
+  /** Система игрока (process.platform): по ней окно подстраивает шапку. */
+  platform: string
+  /** Версия лаунчера. */
+  version: string
   getStatus(): Promise<Status>
   getUpdate(): Promise<UpdateStatus>
   getServerStatus(): Promise<ServerStatus>
@@ -103,4 +125,11 @@ export interface LauncherApi {
   installUpdate(): Promise<void>
   onStatus(listener: (status: Status) => void): void
   onUpdate(listener: (status: UpdateStatus) => void): void
+  onUpdateRequired(listener: (info: RequiredUpdate) => void): void
+  /** Скин игрока с сайта (data URL) или null, если стоит стандартный. */
+  getSkin(): Promise<string | null>
+  /** Стандартный скин игрока; null, если игра ещё не установлена. */
+  getDefaultSkin(): Promise<DefaultSkin | null>
+  uploadSkin(png: Uint8Array): Promise<SkinResult>
+  resetSkin(): Promise<SkinResult>
 }

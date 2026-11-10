@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import type { GameOptions, JvmPreset } from '../../shared/types'
+import { MOJANG_OS, type MojangOs } from '../platform'
 
 /** Формат JSON версий Mojang и NeoForge (только используемые поля). */
 export interface Rule {
@@ -49,8 +50,8 @@ export const JVM_PRESETS: Record<JvmPreset, string[]> = {
   lowend: ['-XX:+UseG1GC', '-XX:MaxGCPauseMillis=50', '-XX:-AlwaysPreTouch', '-XX:+UseStringDeduplication'],
 }
 
-/** Правила Mojang для Windows. Правила с features (демо, QuickPlay и т. п.) не применяем. */
-export function rulesAllow(rules: Rule[] | undefined, arch = process.arch): boolean {
+/** Правила Mojang для системы игрока. Правила с features (демо, QuickPlay и т. п.) не применяем. */
+export function rulesAllow(rules: Rule[] | undefined, arch = process.arch, os: MojangOs = MOJANG_OS): boolean {
   if (!rules?.length) return true
   let allowed = false
   for (const rule of rules) {
@@ -59,7 +60,7 @@ export function rulesAllow(rules: Rule[] | undefined, arch = process.arch): bool
       allowed = true
       continue
     }
-    const nameOk = !rule.os?.name || rule.os.name === 'windows'
+    const nameOk = !rule.os?.name || rule.os.name === os
     const archOk = !rule.os?.arch || (rule.os.arch === 'x86' ? arch === 'ia32' : rule.os.arch === arch)
     if (nameOk && archOk) allowed = rule.action === 'allow'
   }
@@ -113,6 +114,8 @@ export interface LaunchParams {
   /** Дополнительные аргументы Java и игры из настроек лаунчера. */
   extraJvmArgs?: string[]
   extraGameArgs?: string[]
+  /** Копия jar Minecraft под именем версии NeoForge: ставится в конец classpath ради version.json. */
+  versionJar?: string | null
 }
 
 export const SERVER_ADDRESS = 'lumorrix.ru'
@@ -144,10 +147,12 @@ export function buildArguments(params: LaunchParams): string[] {
   const { vanilla, neoforge, nickname, ramGb, minecraftDir, gameDir, tmpDir, launcherVersion } = params
   const libraryDir = join(minecraftDir, 'libraries')
   const nativesDir = join(minecraftDir, 'natives')
-  // Ванильный jar в classpath не кладём: ignoreList NeoForge исключает только jar с именем своей версии.
-  const classpath = mergeLibraries(neoforge, vanilla)
-    .map((library) => join(libraryDir, libraryPath(library)))
-    .join(';')
+  // Ванильный jar под своим именем в classpath не кладём: ignoreList NeoForge исключает только jar с именем своей версии.
+  // Поэтому его копия называется как версия NeoForge (versionJar): NeoForge её пропускает, а version.json из неё виден модам.
+  const classpath = [
+    ...mergeLibraries(neoforge, vanilla).map((library) => join(libraryDir, libraryPath(library))),
+    ...(params.versionJar ? [params.versionJar] : []),
+  ].join(delimiter)
   const vars: Record<string, string> = {
     auth_player_name: nickname,
     version_name: neoforge.id,
@@ -165,7 +170,7 @@ export function buildArguments(params: LaunchParams): string[] {
     launcher_version: launcherVersion,
     classpath,
     library_directory: libraryDir.replaceAll('\\', '/'),
-    classpath_separator: ';',
+    classpath_separator: delimiter,
   }
   return [
     `-Xmx${ramGb}G`,

@@ -179,6 +179,7 @@ async function launch(installed: InstalledGame): Promise<void> {
     jvmPreset,
     extraJvmArgs: discordStatus ? [] : ['-Dlumorrix.discord=false'],
     extraGameArgs: gameOptionArgs({ autoConnect }),
+    versionJar: installed.versionJar,
   })
   const logPath = join(paths.logs, 'game.log')
   const started = Date.now()

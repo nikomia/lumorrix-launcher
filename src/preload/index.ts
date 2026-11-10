@@ -1,7 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { LauncherApi, Status, UpdateStatus } from '../shared/types'
+import type { LauncherApi, RequiredUpdate, Status, UpdateStatus } from '../shared/types'
 
 const api: LauncherApi = {
+  platform: process.platform,
+  version: ipcRenderer.sendSync('app:version') as string,
   getStatus: () => ipcRenderer.invoke('status:get'),
   getUpdate: () => ipcRenderer.invoke('update:get'),
   getServerStatus: () => ipcRenderer.invoke('server:status'),
@@ -24,8 +26,13 @@ const api: LauncherApi = {
   onConsole: (listener) => void ipcRenderer.on('console:data', (_event, text: string) => listener(text)),
   onConsoleClear: (listener) => void ipcRenderer.on('console:clear', () => listener()),
   installUpdate: () => ipcRenderer.invoke('update:install'),
+  getSkin: () => ipcRenderer.invoke('skin:get'),
+  getDefaultSkin: () => ipcRenderer.invoke('skin:default'),
+  uploadSkin: (png) => ipcRenderer.invoke('skin:upload', png),
+  resetSkin: () => ipcRenderer.invoke('skin:reset'),
   onStatus: (listener) => void ipcRenderer.on('status', (_event, status: Status) => listener(status)),
   onUpdate: (listener) => void ipcRenderer.on('update', (_event, status: UpdateStatus) => listener(status)),
+  onUpdateRequired: (listener) => void ipcRenderer.on('update:required', (_event, info: RequiredUpdate) => listener(info)),
 }
 
 contextBridge.exposeInMainWorld('lumorrix', api)

@@ -19,3 +19,7 @@ declare module '*.webp' {
 }
 
 declare module '*.css'
+
+interface ImportMeta {
+  glob(pattern: string, options: { eager: true; query: '?url'; import: 'default' }): Record<string, string>
+}

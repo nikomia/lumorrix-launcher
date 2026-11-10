@@ -106,6 +106,16 @@ a {
   left: 0;
 }
 
+/* macOS: кнопки окна стоят слева над панелью навигации, справа их нет */
+[data-platform='darwin'] .drag {
+  left: 0;
+  right: 0;
+}
+
+[data-platform='darwin'] .rail {
+  padding-top: 40px;
+}
+
 .shell {
   display: flex;
   height: 100%;
@@ -331,6 +341,32 @@ a {
   background-size: cover;
   inset: 0;
   position: absolute;
+}
+
+/* Облёт сервера поверх картинки: проявляется, когда видео началось */
+.scene-video {
+  height: 100%;
+  inset: 0;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity 700ms ease;
+  width: 100%;
+}
+
+.scene-video-on {
+  opacity: 1;
+}
+
+.scene-off {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-video {
+    display: none;
+  }
 }
 
 .scene::after {
@@ -1236,6 +1272,195 @@ a {
 
 .notice {
   position: relative;
+}
+
+/* Плашка об обновлении лаунчера: плоский блок с полосой акцента слева, справа сверху поверх фона */
+.update-banner {
+  animation: card-in 200ms var(--ease);
+  background: rgba(15, 15, 16, 0.86);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 48px 14px 16px;
+  position: absolute;
+  right: 24px;
+  top: 44px;
+  width: 340px;
+  z-index: 6;
+}
+
+.update-banner h2 {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.update-banner p {
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.update-banner .row {
+  margin-top: 8px;
+}
+
+.btn-update {
+  align-items: center;
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+  display: inline-flex;
+  font-weight: 600;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+}
+
+.btn-update:hover:not(:disabled) {
+  background: #9a5cf5;
+}
+
+/* Вкладка «Скин» */
+.skin-layout {
+  align-items: flex-start;
+  display: flex;
+  gap: 40px;
+}
+
+.skin-stage {
+  align-items: center;
+  background: var(--deep);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 20px;
+  justify-content: center;
+  min-height: 400px;
+  padding: 28px 36px;
+  width: 440px;
+}
+
+/* 3D-персонаж из кубов */
+.sk-stage {
+  cursor: grab;
+  height: 340px;
+  perspective: 900px;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  width: 340px;
+}
+
+.sk-stage:active {
+  cursor: grabbing;
+}
+
+.sk-model,
+.sk-box {
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform-style: preserve-3d;
+}
+
+.sk-face {
+  backface-visibility: hidden;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  left: 0;
+  position: absolute;
+  top: 0;
+}
+
+/* У зеркальных рук и ног старых скинов лицевая сторона граней перевёрнута */
+.sk-face-mirror {
+  backface-visibility: visible;
+}
+
+.skin-hint {
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.skin-views {
+  display: flex;
+  gap: 48px;
+}
+
+.skin-views figure {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+}
+
+.skin-views canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.skin-now {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.skin-views figcaption,
+.skin-empty {
+  color: var(--text-3);
+  font-size: 14px;
+}
+
+.skin-side {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 360px;
+}
+
+.skin-side .btn-update {
+  height: 44px;
+  padding: 0 20px;
+}
+
+.skin-side .btn {
+  height: 44px;
+}
+
+.skin-ok {
+  color: var(--ok);
+}
+
+.update-required {
+  position: relative;
+}
+
+.update-required .btn-update {
+  height: 44px;
+  padding: 0 22px;
+}
+
+.update-required .btn-update:disabled {
+  background: var(--raised);
+  color: var(--text-2);
+  cursor: default;
+}
+
+.update-close {
+  height: 30px;
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 30px;
 }
 
 .notice-close {
