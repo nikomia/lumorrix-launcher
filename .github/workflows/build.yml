@@ -10,8 +10,21 @@ permissions:
   contents: read
 
 jobs:
-  windows:
-    runs-on: windows-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+            script: dist
+          - os: ubuntu-latest
+            name: linux
+            script: dist:linux
+          - os: macos-latest
+            name: macos
+            script: dist:mac
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,15 +34,18 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npm run dist
-      - name: SHA-256 установщика
+      - run: npm run ${{ matrix.script }}
+      - name: SHA-256 сборок
         shell: pwsh
-        run: Get-ChildItem dist/*.exe | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash)  $(Split-Path $_.Path -Leaf)" } | Tee-Object dist/SHA256SUMS.txt
+        run: Get-ChildItem dist/* -File -Include *.exe, *.AppImage, *.tar.gz, *.zip | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash)  $(Split-Path $_.Path -Leaf)" } | Tee-Object dist/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: lumorrix-launcher
+          name: lumorrix-launcher-${{ matrix.name }}
           path: |
             dist/*.exe
+            dist/*.AppImage
+            dist/*.tar.gz
+            dist/*.zip
             dist/*.blockmap
-            dist/latest.yml
+            dist/latest*.yml
             dist/SHA256SUMS.txt

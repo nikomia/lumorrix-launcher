@@ -114,7 +114,7 @@ export function parseModsToml(text: string): ModMeta | null {
   }
 }
 
-function readZipEntry(file: string, entryName: string, maxBytes = 2 * 1024 * 1024): Promise<Buffer | null> {
+export function readZipEntry(file: string, entryName: string, maxBytes = 2 * 1024 * 1024): Promise<Buffer | null> {
   return new Promise((resolve, reject) => {
     yauzl.open(file, { lazyEntries: true, autoClose: true }, (openError, zip) => {
       if (openError || !zip) return reject(openError ?? new Error('zip'))

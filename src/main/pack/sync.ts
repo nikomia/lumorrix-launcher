@@ -27,6 +27,8 @@ export interface SyncOptions {
   rehash?: boolean
   /** Папка для состояния и версии. По умолчанию та же, что у мода: config/lumorrix/updater в папке игры. */
   stateDir?: string
+  /** Какие строки манифеста применять. Остальные лаунчер не скачивает и не хранит. */
+  filter?: (entry: ManifestEntry) => boolean
   threads?: number
   onProgress?: (progress: SyncProgress) => void
 }
@@ -116,6 +118,7 @@ async function moveWithRetry(from: string, to: string, keepSource: boolean): Pro
 async function runSync(options: SyncOptions, text: string): Promise<SyncResult> {
   const { gameDir, tmpDir, disabled, onProgress } = options
   const manifest = parseManifest(text, options.manifestUrl)
+  if (options.filter) manifest.entries = manifest.entries.filter(options.filter)
   const home = options.stateDir ?? updaterHome(gameDir)
   await mkdir(home, { recursive: true })
   const stateFile = join(home, 'state.tsv')

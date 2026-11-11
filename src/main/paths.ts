@@ -1,13 +1,22 @@
 import { mkdirSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { IS_MAC, IS_WINDOWS } from './platform'
 
 /**
  * Всё, что создаёт лаунчер, лежит в одной папке рядом с привычной .minecraft.
  * Путь разворачиваем в полный: с коротким именем вида USERNA~1 игра падает, потому что Mixin обрезает путь на «~».
+ * На macOS и Linux папка лежит там, где система хранит данные программ.
  */
+function defaultRoot(): string {
+  const home = homedir()
+  if (IS_WINDOWS) return join(process.env.APPDATA ?? home, '.lumorrix-launcher')
+  if (IS_MAC) return join(home, 'Library', 'Application Support', 'lumorrix-launcher')
+  return join(process.env.XDG_DATA_HOME || join(home, '.local', 'share'), 'lumorrix-launcher')
+}
+
 function resolveRoot(): string {
-  const wanted = process.env.LUMORRIX_ROOT ?? join(process.env.APPDATA ?? homedir(), '.lumorrix-launcher')
+  const wanted = process.env.LUMORRIX_ROOT ?? defaultRoot()
   mkdirSync(wanted, { recursive: true })
   return realpathSync.native(wanted)
 }

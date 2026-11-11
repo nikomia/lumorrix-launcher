@@ -1,7 +1,7 @@
 {
   "name": "lumorrix-launcher",
   "productName": "Lumorrix",
-  "version": "0.1.0",
+  "version": "0.3.3",
   "description": "Лаунчер сервера Lumorrix",
   "author": "Lumorrix",
   "license": "UNLICENSED",
@@ -12,7 +12,9 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "dist": "electron-vite build && electron-builder --win --publish never"
+    "dist": "electron-vite build && electron-builder --win --publish never",
+    "dist:linux": "electron-vite build && electron-builder --linux --publish never",
+    "dist:mac": "electron-vite build && electron-builder --mac --publish never"
   },
   "devDependencies": {
     "@preact/preset-vite": "2.10.6",
@@ -45,6 +47,10 @@
       "package.json"
     ],
     "asar": true,
+    "asarUnpack": [
+      "out/renderer/assets/*.mp4",
+      "out/renderer/assets/*.webm"
+    ],
     "electronLanguages": [
       "ru",
       "en-US"
@@ -62,6 +68,48 @@
       "icon": "build/icon.ico",
       "legalTrademarks": "Lumorrix",
       "artifactName": "Lumorrix-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.games",
+      "identity": "-",
+      "artifactName": "Lumorrix-${version}-mac-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Game",
+      "executableName": "lumorrix",
+      "synopsis": "Лаунчер сервера Lumorrix",
+      "artifactName": "Lumorrix-${version}-linux-${arch}.${ext}",
+      "extraResources": [
+        {
+          "from": "build/icon.png",
+          "to": "icon.png"
+        }
+      ]
     },
     "nsis": {
       "oneClick": true,
