@@ -281,6 +281,6 @@ describe('синхронизация сборки', () => {
     expect(safeTarget(game, 'C:/evil.jar')).toBeNull()
     expect(safeTarget(game, '/evil.jar')).toBeNull()
     expect(safeTarget(game, 'config/lumorrix/updater/state.tsv')).toBeNull()
-    expect(safeTarget(game, 'mods/ok.jar')).toBe(inGame('mods\\ok.jar'))
+    expect(safeTarget(game, 'mods/ok.jar')).toBe(inGame('mods/ok.jar'))
   })
 })

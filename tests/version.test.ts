@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildArguments, gameOptionArgs, libraryPath, mergeLibraries, offlineUuid, rulesAllow, type VersionJson } from '../src/main/game/version'
+import { MOJANG_OS } from '../src/main/platform'
 
 const vanilla: VersionJson = {
   id: '1.21.1',
@@ -99,12 +100,12 @@ describe('запуск игры', () => {
 
   it('не включает аргументы и библиотеки других систем и демо-режим', () => {
     const list = args()
-    expect(list).not.toContain('-XstartOnFirstThread')
     expect(list).not.toContain('--demo')
-    expect(list).toContain('-Dwin=1')
+    expect(list.includes('-Dwin=1')).toBe(MOJANG_OS === 'windows')
+    expect(list.includes('-XstartOnFirstThread')).toBe(MOJANG_OS === 'osx')
     const classpath = list[list.indexOf('-cp') + 1]
-    expect(classpath).toContain('natives-windows')
-    expect(classpath).not.toContain('natives-linux')
+    expect(classpath.includes('natives-windows')).toBe(MOJANG_OS === 'windows')
+    expect(classpath.includes('natives-linux')).toBe(MOJANG_OS === 'linux')
   })
 
   it('библиотека NeoForge заменяет ванильную той же группы и имени, jar игры в classpath нет', () => {
@@ -121,7 +122,9 @@ describe('запуск игры', () => {
 
   it('разбирает правила', () => {
     expect(rulesAllow(undefined)).toBe(true)
-    expect(rulesAllow([{ action: 'allow' }, { action: 'disallow', os: { name: 'windows' } }])).toBe(false)
-    expect(rulesAllow([{ action: 'allow', os: { name: 'windows', arch: 'x86' } }], 'x64')).toBe(false)
+    expect(rulesAllow([{ action: 'allow' }, { action: 'disallow', os: { name: 'windows' } }], 'x64', 'windows')).toBe(false)
+    expect(rulesAllow([{ action: 'allow' }, { action: 'disallow', os: { name: 'windows' } }], 'x64', 'linux')).toBe(true)
+    expect(rulesAllow([{ action: 'allow', os: { name: 'windows', arch: 'x86' } }], 'x64', 'windows')).toBe(false)
+    expect(rulesAllow([{ action: 'allow', os: { name: 'osx' } }], 'arm64', 'osx')).toBe(true)
   })
 })
