@@ -28,12 +28,12 @@ macOS — `~/Library/Application Support/lumorrix-launcher`, Linux — `~/.local
 
 Скачать: [lumorrix.ru/launcher](https://lumorrix.ru/launcher). Весь исходный код лаунчера лежит здесь, его можно прочитать.
 
-Версия 0.1.0: [отчёт VirusTotal](https://www.virustotal.com/gui/file/91bf16480149460981cedce0e23090266d8e0c434d58600bb67dad9ccac470ad), на 7 ноября 2026 сработало 0 антивирусов из 67.
+Версия 0.3.3: [отчёт VirusTotal](https://www.virustotal.com/gui/file/62f0133a0aaf23109f99a59a687b8f3ab4d66edd6331afe018996208935ff157), на 12 ноября 2026 сработало 0 антивирусов из 69.
 
 SHA-256 установщика:
 
 ```
-91bf16480149460981cedce0e23090266d8e0c434d58600bb67dad9ccac470ad
+62f0133a0aaf23109f99a59a687b8f3ab4d66edd6331afe018996208935ff157
 ```
 
 Проверить свой файл в PowerShell, хеш должен совпасть:
