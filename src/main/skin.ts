@@ -1,7 +1,7 @@
-import { randomBytes } from 'node:crypto'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import type { CurrentSkin, DefaultSkin, SkinResult } from '../shared/types'
+import { devicePublicKey, deviceSign } from './devicekey'
 import { MC_VERSION } from './game/install'
 import { offlineUuid } from './game/version'
 import { log } from './log'
@@ -11,28 +11,38 @@ import { paths } from './paths'
 /**
  * Лаунчер отправляет скин на наш сайт, сайт подписывает его и ставит на игровом сервере, так что его видят все игроки.
  * Скин можно поменять и в игре командой /skin: тогда действует тот, что поменяли последним.
- * Ник закрепляется за первым лаунчером, который поставил ему скин: сайт помнит его ключ.
+ * Менять скин ника можно только с компьютера, который сервер уже одобрил для этого аккаунта: лаунчер подписывает
+ * запрос тем же ключом компьютера, которым мод авторизации входит на сервер (см. devicekey.ts).
  */
 const SKIN_SITE = process.env.LUMORRIX_SKIN_SITE ?? 'https://lumorrix.ru'
-const keyFile = join(paths.data, 'skin-key.txt')
 const MAX_BYTES = 64 * 1024
 const NO_NETWORK = 'Нет связи с сайтом. Проверьте интернет и попробуйте ещё раз.'
 
-/** Секретный ключ этого лаунчера. Создаётся один раз и хранится в папке данных. */
-async function launcherKey(): Promise<string> {
-  const saved = (await readFile(keyFile, 'utf8').catch(() => '')).trim()
-  if (saved.length >= 32) return saved
-  const key = randomBytes(32).toString('base64url')
-  await mkdir(paths.data, { recursive: true })
-  await writeFile(keyFile, `${key}\n`, 'utf8')
-  return key
+/** Заголовки с подписью запроса ключом этого компьютера. Строку подписи сайт собирает так же (skin_api.py). */
+async function signedHeaders(method: 'PUT' | 'DELETE', nickname: string, body?: Uint8Array): Promise<Record<string, string>> {
+  const time = String(Math.floor(Date.now() / 1000))
+  const digest = createHash('sha256').update(body ?? new Uint8Array()).digest('hex')
+  const message = `lumorrix-skin-v1|${method.toLowerCase()}|${nickname.toLowerCase()}|${time}|${digest}`
+  return {
+    'X-Lumorrix-Nick': nickname,
+    'X-Lumorrix-Device': await devicePublicKey(),
+    'X-Lumorrix-Time': time,
+    'X-Lumorrix-Signature': await deviceSign(message),
+  }
 }
 
 async function request(method: 'PUT' | 'DELETE', nickname: string, body?: Uint8Array): Promise<SkinResult> {
+  let headers: Record<string, string>
+  try {
+    headers = await signedHeaders(method, nickname, body)
+  } catch (error) {
+    log('Не удалось получить ключ компьютера', error)
+    return { ok: false, error: 'Не удалось определить компьютер. Попробуйте ещё раз.' }
+  }
   try {
     const response = await fetch(`${SKIN_SITE}/api/skin`, {
       method,
-      headers: { 'X-Lumorrix-Nick': nickname, 'X-Lumorrix-Key': await launcherKey(), 'Content-Type': 'image/png' },
+      headers: { ...headers, 'Content-Type': 'image/png' },
       body: body ? Buffer.from(body) : undefined,
       signal: AbortSignal.timeout(20_000),
     })
