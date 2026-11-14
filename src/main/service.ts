@@ -1,9 +1,9 @@
 import { type ChildProcess, spawn } from 'node:child_process'
 import { closeSync, createWriteStream, openSync } from 'node:fs'
-import { mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import type { Status } from '../shared/types'
+import type { JvmPreset, Status } from '../shared/types'
 import { Cancelled, UserError } from './errors'
 import { analyzeCrash } from './game/crashAnalyzer'
 import { ensureGame, type InstalledGame } from './game/install'
@@ -163,10 +163,26 @@ function showError(error: unknown): void {
   })
 }
 
+/** Метка для FancyMenu: на слабом ПК главное меню показывает картинку вместо видео. */
+async function syncLiteMenuMarker(jvmPreset: JvmPreset): Promise<void> {
+  const marker = join(paths.game, 'config', 'lumorrix', 'lite_menu')
+  try {
+    if (jvmPreset === 'lowend') {
+      await mkdir(join(paths.game, 'config', 'lumorrix'), { recursive: true })
+      await writeFile(marker, 'Настройки Java «Для слабого ПК»: меню без видео.\n', 'utf8')
+    } else {
+      await rm(marker, { force: true })
+    }
+  } catch (cause) {
+    log('Не удалось обновить метку лёгкого меню', cause)
+  }
+}
+
 async function launch(installed: InstalledGame): Promise<void> {
   const { nickname, ramGb, jvmPreset, autoConnect, closeOnLaunch, discordStatus } = await loadSettings()
   const tmpDir = join(paths.tmp, 'game')
   await Promise.all([mkdir(tmpDir, { recursive: true }), mkdir(paths.game, { recursive: true }), mkdir(paths.logs, { recursive: true })])
+  await syncLiteMenuMarker(jvmPreset)
   const args = buildArguments({
     vanilla: installed.vanilla,
     neoforge: installed.neoforge,
