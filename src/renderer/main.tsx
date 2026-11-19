@@ -14,7 +14,7 @@ import presetCustom from './assets/preset-custom.jpg'
 import presetPerformance from './assets/preset-performance.jpg'
 import presetQuality from './assets/preset-quality.jpg'
 import { headDataUrl, loadImage } from './skin'
-import { Skin3D } from './skin3d'
+import { SkinPage } from './skinPage'
 import './styles.css'
 
 declare global {
@@ -346,101 +346,6 @@ function UpdateBanner({ update, busy }: { update: UpdateStatus; busy: boolean })
   )
 }
 
-const checkSkinSize = (image: HTMLImageElement) =>
-  image.width === 64 && (image.height === 64 || image.height === 32)
-    ? null
-    : `Скин должен быть 64×64 или 64×32 пикселя, а этот ${image.width}×${image.height}.`
-
-/** Вкладка «Скин»: свой скин из PNG-файла. Его видят все игроки на сервере. */
-function SkinPage({ skin, standard, onSkin }: { skin: CurrentSkin | null; standard: DefaultSkin | null; onSkin: (skin: CurrentSkin | null) => void }) {
-  const input = useRef<HTMLInputElement>(null)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState<{ bad: boolean; text: string } | null>(null)
-  const shown = preview ?? skin?.src ?? standard?.src ?? null
-
-  const choose = async (file: File | undefined) => {
-    if (!file) return
-    setMessage(null)
-    const bytes = new Uint8Array(await file.arrayBuffer())
-    const url = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }))
-    try {
-      const problem = checkSkinSize(await loadImage(url))
-      if (problem) {
-        setMessage({ bad: true, text: problem })
-        return
-      }
-      setPreview(url)
-      setBusy(true)
-      const result = await api.uploadSkin(bytes)
-      if (result.ok) {
-        onSkin(await api.getSkin())
-        setMessage({ bad: false, text: 'Скин сохранён. В игре он появится примерно через минуту, перезаходить не нужно.' })
-      } else {
-        setMessage({ bad: true, text: result.error })
-      }
-    } catch {
-      setMessage({ bad: true, text: 'Это не картинка PNG.' })
-    } finally {
-      setPreview(null)
-      setBusy(false)
-      URL.revokeObjectURL(url)
-      if (input.current) input.current.value = ''
-    }
-  }
-
-  const reset = async () => {
-    setBusy(true)
-    setMessage(null)
-    const result = await api.resetSkin()
-    setBusy(false)
-    if (result.ok) {
-      const current = await api.getSkin()
-      onSkin(current)
-      setMessage({ bad: false, text: current ? 'Убрали скин из лаунчера. В игре снова скин, поставленный командой /skin.' : 'Вернули стандартный скин.' })
-    } else {
-      setMessage({ bad: true, text: result.error })
-    }
-  }
-
-  return (
-    <div class="page skin-page">
-      <header class="page-head">
-        <h1>Скин</h1>
-      </header>
-      <div class="skin-layout">
-        <div class="skin-stage">
-          <p class="skin-now">
-            {preview ? 'Ваш скин' : skin?.fromServer ? 'Ваш скин (поставлен командой /skin)' : skin ? 'Ваш скин' : standard?.name === 'лицензия Minecraft' ? 'Скин лицензии Minecraft' : standard ? `Стандартный скин: ${standard.name}` : 'Стандартный скин'}
-          </p>
-          {shown ? <Skin3D src={shown} /> : <p class="skin-empty">Появится после установки игры</p>}
-          {shown && <p class="skin-hint">Поверните мышкой</p>}
-        </div>
-        <div class="skin-side">
-          <p class="help">
-            Файл PNG 64×64 или 64×32, как в обычном Minecraft. Скин увидят все игроки на сервере. Тонкие руки, как у Алекс,
-            определятся сами.
-          </p>
-          <input ref={input} type="file" accept="image/png" hidden onChange={(event) => void choose(event.currentTarget.files?.[0])} />
-          <div class="row">
-            <button class="btn btn-update" disabled={busy} onClick={() => input.current?.click()}>
-              <Shirt size={18} strokeWidth={2.5} />
-              {busy ? 'Сохраняем…' : 'Выбрать файл'}
-            </button>
-            {skin && !skin.fromServer && !busy && (
-              <button class="btn" onClick={() => void reset()}>
-                Вернуть стандартный
-              </button>
-            )}
-          </div>
-          {message && <p class={message.bad ? 'help help-bad' : 'help skin-ok'}>{message.text}</p>}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/** Окно «Нужно обновить лаунчер»: появляется, если нажать «Играть» в старой версии. Играть без обновления нельзя. */
 function UpdateRequiredModal({ info, update, onClose }: { info: RequiredUpdate; update: UpdateStatus; onClose: () => void }) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

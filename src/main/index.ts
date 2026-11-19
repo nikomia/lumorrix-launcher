@@ -10,7 +10,8 @@ import { dependentsOf, isHidden, listMods, type ModInfo, modIconPath, presetWant
 import { installedVersion } from './pack/sync'
 import { manifestCache, MANIFEST_URL, modMetaCache, packTmp, paths } from './paths'
 import { getUpdateStatus, installUpdate, requiredUpdate, startSelfUpdate } from './selfUpdate'
-import { currentSkin, defaultSkin, licensedSkin, resetSkin, uploadSkin } from './skin'
+import { currentSkin, defaultSkin, licensedSkin, resetSkin, skinByNick, standardSkins, uploadSkin } from './skin'
+import { forgetSkin, rememberSkin, skinHistory } from './skinHistory'
 import * as service from './service'
 import { isJvmPreset, isPreset, loadDisabled, loadSettings, NICKNAME, RAM_OPTIONS, ramAllowed, saveDisabled, saveSettings } from './settings'
 
@@ -316,15 +317,31 @@ function registerIpc(): void {
   ipcMain.handle('crash:copy', async () => clipboard.writeText(await service.crashReportText()))
   ipcMain.handle('console:open', () => openConsole())
   ipcMain.handle('console:tail', () => consoleTail())
-  ipcMain.handle('skin:get', async () => currentSkin((await loadSettings()).nickname))
+  ipcMain.handle('skin:get', async () => {
+    const current = await currentSkin((await loadSettings()).nickname)
+    if (!current) return null
+    // Скин, который уже стоит в игре (в том числе от /skin), тоже попадает в историю, чтобы к нему можно было вернуться.
+    await rememberSkin(current.png, current.fromServer ? 'Скин от /skin' : 'Ваш скин', undefined, true)
+    return { src: current.src, fromServer: current.fromServer }
+  })
   // Без своего скина игра покажет лицензионный с таким же ником, а если его нет — стандартный.
   ipcMain.handle('skin:default', async () => {
     const { nickname } = await loadSettings()
     return (await licensedSkin(nickname)) ?? defaultSkin(nickname)
   })
-  ipcMain.handle('skin:upload', async (_event, png: unknown) => {
+  ipcMain.handle('skin:upload', async (_event, png: unknown, model: unknown, name: unknown) => {
     if (!(png instanceof Uint8Array)) return { ok: false, error: 'Не удалось прочитать файл скина.' }
-    return uploadSkin((await loadSettings()).nickname, png)
+    const arms = model === 'slim' || model === 'wide' ? model : undefined
+    const result = await uploadSkin((await loadSettings()).nickname, png, arms)
+    if (result.ok) await rememberSkin(png, typeof name === 'string' && name.trim() ? name.trim().slice(0, 40) : 'Скин', arms)
+    return result
+  })
+  ipcMain.handle('skin:history', () => skinHistory())
+  ipcMain.handle('skin:forget', (_event, id: unknown) => (typeof id === 'string' ? forgetSkin(id) : undefined))
+  ipcMain.handle('skin:standard', () => standardSkins())
+  ipcMain.handle('skin:find', async (_event, nickname: unknown) => {
+    if (typeof nickname !== 'string') return null
+    return skinByNick(nickname.trim()).catch(() => 'busy' as const)
   })
   ipcMain.handle('skin:reset', async () => resetSkin((await loadSettings()).nickname))
   ipcMain.on('app:version', (event) => {

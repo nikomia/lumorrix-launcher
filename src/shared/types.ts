@@ -23,6 +23,19 @@ export interface CurrentSkin {
   fromServer: boolean
 }
 
+/** Модель рук: тонкие, как у Алекс, или обычные, как у Стива. */
+export type SkinModel = 'slim' | 'wide'
+
+/** Скин из истории, из стандартных или найденный по нику. */
+export interface SkinItem {
+  id: string
+  src: string
+  name: string
+  model?: SkinModel
+  /** Когда его поставили (для истории), мс. */
+  addedAt?: number
+}
+
 /** Скин, который игра показывает нику без своего скина: лицензионный с тем же ником или стандартный Minecraft. */
 export interface DefaultSkin {
   src: string
@@ -136,6 +149,14 @@ export interface LauncherApi {
   getSkin(): Promise<CurrentSkin | null>
   /** Стандартный скин игрока; null, если игра ещё не установлена. */
   getDefaultSkin(): Promise<DefaultSkin | null>
-  uploadSkin(png: Uint8Array): Promise<SkinResult>
+  /** Поставить скин. name — подпись в истории. */
+  uploadSkin(png: Uint8Array, model: SkinModel, name: string): Promise<SkinResult>
   resetSkin(): Promise<SkinResult>
+  /** Скины, которые уже ставили, новые сначала. */
+  getSkinHistory(): Promise<SkinItem[]>
+  forgetSkin(id: string): Promise<void>
+  /** 18 стандартных скинов Minecraft; пусто, пока игра не установлена. */
+  getStandardSkins(): Promise<SkinItem[]>
+  /** Скин лицензионного аккаунта с этим ником; null — такого ника нет, 'busy' — Mojang не ответил. */
+  findSkin(nickname: string): Promise<SkinItem | null | 'busy'>
 }
